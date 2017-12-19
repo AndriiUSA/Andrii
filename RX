@@ -1,0 +1,70 @@
+
+//===============================================================libraries=============================================================
+#include <Adafruit_NeoPixel.h>                                                        //WS2812
+#define PIN 3                                                                         //pin for LED
+#define count_led 6                                                                   //quantity LED
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(count_led, PIN, NEO_GRB + NEO_KHZ800);   //first number change does distance between colors
+
+#include <SPI.h>
+#include "nRF24L01.h"
+#include "RF24.h"
+//====================================================================NRF==============================================================
+RF24 radio(9, 10);                                                                     //pin numbers for NRF Uno/Nano
+byte recieved_data[13];                                                                //array recive data
+byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};            //pipe numbers
+//==================================================================Reset pin==========================================================
+byte reset_menual = 5;                                                                 //pin for reset
+//=====================================================================================================================================
+void setup() {
+
+  pixels.begin();                                                                      //activate LED module
+  radio.begin();                                                                       //activate radio module
+  delay (100);
+  radio.setAutoAck(1);                                                                 //receive confirmation mode, 1-on 0-off
+  radio.setRetries(15, 15);
+  radio.enableAckPayload();                                                            //allow data to be sent in response to an incoming signal
+  radio.setPayloadSize(32);                                                            //packet size, in bytes
+  radio.openReadingPipe(1, address[2]);                                                //open pipe
+  radio.setChannel(0x112);                                                             //select channel
+  radio.setPALevel (RF24_PA_MAX);                                                      //power level (_LOW, _HIGH, _MAX)
+  radio.setDataRate (RF24_1MBPS);                                                      //speed rate (_2MBPS, _1MBPS, _250KBPS)
+  radio.powerUp();                                                                     //start working
+  radio.startListening();                                                              //start listening
+}
+void loop() {
+  // byte pipeNo;
+  // while (radio.available(&pipeNo)) {
+   
+    radio.read (&recieved_data, sizeof(recieved_data));                                //read the incoming signal
+
+    for (int i = 0; i <= 5; i++) {                                                     //for 6 LED 
+      if (recieved_data[i] == HIGH)  {                                                 //if received high signal from 0 to 5 element array
+        pixels.setPixelColor(i, pixels.Color(0, 50, 0));                               //LED light green 
+        pixels.show();
+      }
+    }
+
+    for (int i = 0; i <= 5; i++) {                                                     //for 6 LED 
+      if (recieved_data[i+6] == HIGH)  {                                               //if received high signal from 6 to 11 element array
+        pixels.setPixelColor(i, pixels.Color(50, 0, 0));                               //LED light red 
+        pixels.show();
+      }
+    }
+                                                                                       //reset from transmiter
+    for (int i = 0; i <= 5; i++) {                                                     //for 6 LED 
+      if (recieved_data[12] == HIGH)  {                                                //if received high signal from 12 element array
+        pixels.setPixelColor(i, pixels.Color(20, 20, 0));                              //LED yellow 
+        pixels.show();
+      }
+    }
+ // }    
+                                                                                       //reset from button (manual) 
+    for (int i = 0; i <= 5; i++) {                                                     //for 6 LED
+      if (digitalRead(reset_menual) == HIGH) {                                         //if button push
+        pixels.setPixelColor(i, pixels.Color(20, 20, 0));                              //LED yellow 
+        pixels.show();
+      }
+    }
+    delay (50);
+  }
+
