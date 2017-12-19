@@ -1,0 +1,62 @@
+
+//===============================================================libraries===========================================================
+#include <SPI.h>
+#include "nRF24L01.h"
+#include "RF24.h"
+#include <Keypad.h>
+
+//=================================================================Keypad===========================================================
+const byte ROWS = 3;                                                                //four rows
+const byte COLS = 3;                                                                //four column
+char hexaKeys[ROWS][COLS] = {                                                       //define the cymbols on the buttons of the keypads
+  {'1', '2', '3'},
+  {'4', '5', '6'},
+};
+byte rowPins[ROWS] = {A0, A1, A1};                                                  //connect to the row pinouts of the keypad
+byte colPins[COLS] = {A3, A4, A5};                                                  //connect to the column pinouts of the keypad
+Keypad customKeypad = Keypad( makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);  //initialize an instance of class NewKeypad
+
+//====================================================================NRF===========================================================
+//RF24 radio(9, 10);                                                               //for Uno/Nano
+RF24 radio(8,9);                                                                   //for Mega
+
+byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};         //pipe numbers
+
+byte pin [] = { 25, 29, 33, 37, 41, 45,    26, 30, 34, 38, 42, 46,   5 };           //pin- fail/pass/reset
+byte transmit_data[13];                                                              //array transmitted data
+//================================================================================================================================
+
+void setup() {
+  Serial.begin(9600);
+  radio.begin();                                                                    //activate module
+  delay (100);
+  radio.setAutoAck(1);                                                              //receive confirmation mode, 1-on 0-off
+  radio.setRetries(0, 15);                                                          //the time between the attempt to reach, the number of attempts
+  radio.enableAckPayload();                                                         //allow data to be sent in response to an incoming signal
+  radio.setPayloadSize(32);                                                         //packet size, in bytes
+  //    radio.openWritingPipe(address[0]);
+  radio.setChannel(0x60);                                                           //select channel
+  radio.setPALevel (RF24_PA_MAX);                                                   //power level (_LOW, _HIGH, _MAX)
+  radio.setDataRate (RF24_250KBPS);                                                 //speed rate (_2MBPS, _1MBPS, _250KBPS)
+  radio.powerUp();                                                                  //start working
+  radio.stopListening();                                                            //don't listening
+}
+
+void loop() {
+  char customKey = customKeypad.getKey();
+  if (customKey == '1') {                                                           //if push button "1"
+    radio.openWritingPipe(address[0]);                                              //open pipe 0
+  } else if (customKey == '2') {                                                    //if push button "2"
+    radio.openWritingPipe(address[1]);                                              //open pipe 1
+  }
+    else if (customKey == '3') {                                                    //if push button "3"
+    radio.openWritingPipe(address[2]);                                              //open pipe 2
+  }
+  
+ Serial.println (1);
+  for (int i = 0; i <= 12; i++) {
+    transmit_data[i] = digitalRead(pin[i]);                                         //take signal from pin and write in array
+  }
+  radio.write(&transmit_data, sizeof(transmit_data));                               //send array 
+  delay (50);
+}
